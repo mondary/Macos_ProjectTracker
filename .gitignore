@@ -1,0 +1,18 @@
+# Swift / macOS
+.DS_Store
+.build/
+Packages/
+.swiftpm/
+DerivedData/
+
+# Xcode
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+
+# VS Code
+.vscode/
+
+# Project Specific
+*.swp
+*~
