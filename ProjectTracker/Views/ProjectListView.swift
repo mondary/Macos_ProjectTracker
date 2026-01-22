@@ -713,10 +713,20 @@ struct ColumnGrid: View {
     }
     
     private func distribute(_ items: [Project], into columns: Int) -> [[Project]] {
-        var result = Array(repeating: [Project](), count: columns)
-        for (index, item) in items.enumerated() {
-            let target = index % columns
-            result[target].append(item)
+        guard columns > 0 else { return [] }
+        let total = items.count
+        let chunkSize = Int(ceil(Double(total) / Double(columns)))
+        var result: [[Project]] = []
+        result.reserveCapacity(columns)
+        
+        for col in 0..<columns {
+            let start = col * chunkSize
+            let end = min(start + chunkSize, total)
+            if start < end {
+                result.append(Array(items[start..<end]))
+            } else {
+                result.append([])
+            }
         }
         return result
     }
