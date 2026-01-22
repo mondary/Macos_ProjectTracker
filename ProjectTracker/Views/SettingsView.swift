@@ -112,9 +112,51 @@ struct SettingsView: View {
                 }
                 .padding(.vertical, 8)
             }
+
+            Section(header: Label("Rapport HTML", systemImage: "doc.plaintext").font(.headline)) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Chemin")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .frame(width: 90, alignment: .leading)
+                        
+                        TextField("Chemin du rapport", text: $viewModel.reportPath)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    
+                    Toggle("Générer automatiquement", isOn: $viewModel.reportAutoGenerate)
+                        .toggleStyle(.switch)
+                    
+                    Toggle("Ouvrir après scan", isOn: $viewModel.reportAutoOpen)
+                        .toggleStyle(.switch)
+                        .disabled(!viewModel.reportAutoGenerate)
+                    
+                    HStack(spacing: 8) {
+                        Button("Générer maintenant") {
+                            Task {
+                                await ReportService.shared.generateReport(
+                                    projects: viewModel.projects,
+                                    outputPath: viewModel.reportPath,
+                                    scanDate: viewModel.lastScanDate ?? Date()
+                                )
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        
+                        Button("Ouvrir") {
+                            Task {
+                                await ReportService.shared.openReport(at: viewModel.reportPath)
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                .padding(.vertical, 8)
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 520, height: 580)
+        .frame(width: 560, height: 660)
         .navigationTitle("Réglages - Project Tracker")
     }
     

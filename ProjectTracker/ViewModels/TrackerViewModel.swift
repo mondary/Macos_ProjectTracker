@@ -21,6 +21,9 @@ class TrackerViewModel: ObservableObject {
     @AppStorage("githubToken") var githubToken: String = ""
     @AppStorage("cachedGithubRepos") private var cachedGithubReposData: Data = Data()
     @Published var githubRepos: [GitHubRepo] = []
+    @AppStorage("reportPath") var reportPath: String = NSString(string: "~/Documents/ProjectTracker/report.html").expandingTildeInPath
+    @AppStorage("reportAutoGenerate") var reportAutoGenerate: Bool = true
+    @AppStorage("reportAutoOpen") var reportAutoOpen: Bool = true
     
     var filteredProjects: [Project] {
         if searchText.isEmpty {
@@ -77,6 +80,17 @@ class TrackerViewModel: ObservableObject {
         
         Task {
             await fetchGitHubRepos()
+        }
+        
+        if reportAutoGenerate {
+            await ReportService.shared.generateReport(
+                projects: projects,
+                outputPath: reportPath,
+                scanDate: lastScanDate ?? Date()
+            )
+            if reportAutoOpen {
+                await ReportService.shared.openReport(at: reportPath)
+            }
         }
     }
 

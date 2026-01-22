@@ -289,6 +289,15 @@ struct ProjectListView: View {
                     .foregroundColor(.secondary)
             }
             
+            Button("Rapport") {
+                Task {
+                    await ReportService.shared.openReport(at: viewModel.reportPath)
+                }
+            }
+            .buttonStyle(.link)
+            .font(.system(size: 10, weight: .semibold, design: .rounded))
+            .help("Ouvrir le rapport HTML")
+            
             Button("Réglages") {
                 openSettings()
             }
