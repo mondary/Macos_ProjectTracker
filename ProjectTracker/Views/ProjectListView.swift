@@ -6,7 +6,7 @@ struct ProjectListView: View {
     @Environment(\.openSettings) private var openSettings
     @State private var displayMode: DisplayMode = .twoColumns
     @State private var sortOption: SortOption = .name
-    @State private var sortAscending = false
+    @State private var sortAscending = true
     @State private var didCopyLog = false
     
     var body: some View {
@@ -109,9 +109,15 @@ struct ProjectListView: View {
     private var sortControl: some View {
         HStack(spacing: 6) {
             Menu {
-                Picker("Trier par", selection: $sortOption) {
-                    ForEach(SortOption.allCases, id: \.self) { option in
-                        Text(option.label).tag(option)
+                ForEach(SortOption.allCases, id: \.self) { option in
+                    Button {
+                        sortOption = option
+                    } label: {
+                        if option == sortOption {
+                            Label(option.label, systemImage: "checkmark")
+                        } else {
+                            Text(option.label)
+                        }
                     }
                 }
             } label: {
@@ -125,11 +131,11 @@ struct ProjectListView: View {
             Button {
                 sortAscending.toggle()
             } label: {
-                Image(systemName: sortAscending ? "arrow.up" : "arrow.down")
+                Image(systemName: sortAscending ? "arrow.down" : "arrow.up")
                     .frame(width: 28, height: 28)
             }
             .buttonStyle(.plain)
-            .help(sortAscending ? "Ordre croissant" : "Ordre décroissant")
+            .help(sortAscending ? "A → Z" : "Z → A")
             .background(Color(nsColor: .controlBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             .overlay(
@@ -150,17 +156,29 @@ struct ProjectListView: View {
                 if !changed.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         SectionHeader(title: "Actions requises", count: changed.count, accent: Color(red: 0.92, green: 0.54, blue: 0.36))
-                        if displayMode == .list {
-                            VStack(spacing: 8) {
-                                ForEach(changed) { project in
-                                    ProjectRow(project: project, compact: false)
-                                }
-                            }
+                        if sortOption == .status {
+                            StatusSectionList(
+                                groups: groupByGitHubAndStatus(changed),
+                                displayMode: displayMode
+                            )
+                        } else if sortOption == .folder {
+                            FolderSectionList(
+                                groups: groupByFolder(changed),
+                                displayMode: displayMode
+                            )
                         } else {
-                            LazyVGrid(columns: displayMode.columns, spacing: 8) {
-                                ForEach(changed) { project in
-                                    ProjectRow(project: project, compact: displayMode.compactRows)
+                            if displayMode == .list {
+                                VStack(spacing: 8) {
+                                    ForEach(changed) { project in
+                                        ProjectRow(project: project, compact: false)
+                                    }
                                 }
+                            } else {
+                                ColumnGrid(
+                                    projects: changed,
+                                    columns: displayMode.columnCount,
+                                    compact: displayMode.compactRows
+                                )
                             }
                         }
                     }
@@ -170,17 +188,29 @@ struct ProjectListView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         SectionHeader(title: "Tout est à jour", count: clean.count, accent: Color(red: 0.48, green: 0.78, blue: 0.55))
                         
-                        if displayMode == .list {
-                            VStack(spacing: 8) {
-                                ForEach(clean) { project in
-                                    ProjectRow(project: project, compact: false)
-                                }
-                            }
+                        if sortOption == .status {
+                            StatusSectionList(
+                                groups: groupByGitHubAndStatus(clean),
+                                displayMode: displayMode
+                            )
+                        } else if sortOption == .folder {
+                            FolderSectionList(
+                                groups: groupByFolder(clean),
+                                displayMode: displayMode
+                            )
                         } else {
-                            LazyVGrid(columns: displayMode.columns, spacing: 8) {
-                                ForEach(clean) { project in
-                                    ProjectRow(project: project, compact: displayMode.compactRows)
+                            if displayMode == .list {
+                                VStack(spacing: 8) {
+                                    ForEach(clean) { project in
+                                        ProjectRow(project: project, compact: false)
+                                    }
                                 }
+                            } else {
+                                ColumnGrid(
+                                    projects: clean,
+                                    columns: displayMode.columnCount,
+                                    compact: displayMode.compactRows
+                                )
                             }
                         }
                     }
@@ -488,6 +518,125 @@ struct GitHubLogoView: View {
     }
 }
 
+struct FolderSectionList: View {
+    let groups: [(folder: String, projects: [Project])]
+    let displayMode: DisplayMode
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(groups, id: \.folder) { group in
+                FolderSectionHeader(folder: group.folder)
+                
+                if displayMode == .list {
+                    VStack(spacing: 8) {
+                        ForEach(group.projects) { project in
+                            ProjectRow(project: project, compact: false)
+                        }
+                    }
+                } else {
+                    ColumnGrid(
+                        projects: group.projects,
+                        columns: displayMode.columnCount,
+                        compact: displayMode.compactRows
+                    )
+                }
+            }
+        }
+    }
+}
+
+struct FolderSectionHeader: View {
+    let folder: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "folder.fill")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(.secondary)
+            Text(folder)
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+                .truncationMode(.head)
+            Spacer()
+        }
+        .padding(.vertical, 2)
+        .overlay(
+            Rectangle()
+                .fill(Color(nsColor: .separatorColor))
+                .frame(height: 1)
+                .offset(y: 10),
+            alignment: .bottom
+        )
+    }
+}
+
+struct StatusSectionList: View {
+    let groups: [GitHubStatusGroup]
+    let displayMode: DisplayMode
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(groups) { group in
+                StatusGroupHeader(title: group.title)
+                
+                ForEach(group.statusGroups, id: \.status) { statusGroup in
+                    StatusBucketHeader(title: statusGroup.status.label)
+                    
+                    if displayMode == .list {
+                        VStack(spacing: 8) {
+                            ForEach(statusGroup.projects) { project in
+                                ProjectRow(project: project, compact: false)
+                            }
+                        }
+                    } else {
+                        ColumnGrid(
+                            projects: statusGroup.projects,
+                            columns: displayMode.columnCount,
+                            compact: displayMode.compactRows
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct StatusGroupHeader: View {
+    let title: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "link")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(.secondary)
+            Text(title)
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundColor(.secondary)
+            Spacer()
+        }
+        .padding(.vertical, 2)
+        .overlay(
+            Rectangle()
+                .fill(Color(nsColor: .separatorColor))
+                .frame(height: 1)
+                .offset(y: 10),
+            alignment: .bottom
+        )
+    }
+}
+
+struct StatusBucketHeader: View {
+    let title: String
+    
+    var body: some View {
+        Text(title.uppercased())
+            .font(.system(size: 10, weight: .semibold, design: .rounded))
+            .foregroundColor(.secondary)
+            .padding(.top, 2)
+    }
+}
+
 enum DisplayMode: CaseIterable {
     case list
     case twoColumns
@@ -524,6 +673,15 @@ enum DisplayMode: CaseIterable {
             return []
         }
     }
+
+    var columnCount: Int {
+        switch self {
+        case .list: return 1
+        case .twoColumns: return 2
+        case .threeColumns: return 3
+        case .compact: return 4
+        }
+    }
     
     var compactRows: Bool {
         switch self {
@@ -532,6 +690,35 @@ enum DisplayMode: CaseIterable {
         case .twoColumns, .threeColumns, .compact:
             return true
         }
+    }
+}
+
+struct ColumnGrid: View {
+    let projects: [Project]
+    let columns: Int
+    let compact: Bool
+    
+    var body: some View {
+        let buckets = distribute(projects, into: max(1, columns))
+        return HStack(alignment: .top, spacing: 8) {
+            ForEach(0..<buckets.count, id: \.self) { index in
+                VStack(spacing: 8) {
+                    ForEach(buckets[index]) { project in
+                        ProjectRow(project: project, compact: compact)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
+        }
+    }
+    
+    private func distribute(_ items: [Project], into columns: Int) -> [[Project]] {
+        var result = Array(repeating: [Project](), count: columns)
+        for (index, item) in items.enumerated() {
+            let target = index % columns
+            result[target].append(item)
+        }
+        return result
     }
 }
 
@@ -547,6 +734,33 @@ enum SortOption: CaseIterable {
         case .folder: return "Dossier"
         }
     }
+}
+
+enum StatusBucket: CaseIterable {
+    case modified
+    case ahead
+    case behind
+    case upToDate
+    
+    var label: String {
+        switch self {
+        case .modified: return "Modifié"
+        case .ahead: return "À envoyer"
+        case .behind: return "En retard"
+        case .upToDate: return "À jour"
+        }
+    }
+}
+
+struct StatusGroup {
+    let status: StatusBucket
+    let projects: [Project]
+}
+
+struct GitHubStatusGroup: Identifiable {
+    let id = UUID()
+    let title: String
+    let statusGroups: [StatusGroup]
 }
 
 extension ProjectListView {
@@ -580,6 +794,66 @@ extension ProjectListView {
         if project.aheadCount > 0 { return 1 }
         if project.behindCount > 0 { return 2 }
         return 3
+    }
+
+    private func groupByFolder(_ projects: [Project]) -> [(folder: String, projects: [Project])] {
+        let grouped = Dictionary(grouping: projects) { project in
+            URL(fileURLWithPath: project.path).deletingLastPathComponent().path
+        }
+        
+        let sortedFolders = grouped.keys.sorted { lhs, rhs in
+            if sortAscending {
+                return lhs.localizedCaseInsensitiveCompare(rhs) == .orderedAscending
+            }
+            return lhs.localizedCaseInsensitiveCompare(rhs) == .orderedDescending
+        }
+        
+        return sortedFolders.map { folder in
+            let projectsInFolder = grouped[folder] ?? []
+            let sortedProjects = projectsInFolder.sorted { lhs, rhs in
+                if sortAscending {
+                    return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+                }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedDescending
+            }
+            return (folder: folder, projects: sortedProjects)
+        }
+    }
+
+    private func groupByGitHubAndStatus(_ projects: [Project]) -> [GitHubStatusGroup] {
+        let withGitHub = projects.filter { $0.isLinkedToGitHub }
+        let withoutGitHub = projects.filter { !$0.isLinkedToGitHub }
+        
+        return [
+            makeGitHubGroup(title: "Avec GitHub", projects: withGitHub),
+            makeGitHubGroup(title: "Sans GitHub", projects: withoutGitHub)
+        ].filter { !$0.statusGroups.isEmpty }
+    }
+
+    private func makeGitHubGroup(title: String, projects: [Project]) -> GitHubStatusGroup {
+        var groups: [StatusGroup] = []
+        for bucket in StatusBucket.allCases {
+            let bucketProjects = projects.filter { bucket.matches($0) }
+            if !bucketProjects.isEmpty {
+                groups.append(StatusGroup(status: bucket, projects: sortProjects(bucketProjects)))
+            }
+        }
+        return GitHubStatusGroup(title: title, statusGroups: groups)
+    }
+}
+
+private extension StatusBucket {
+    func matches(_ project: Project) -> Bool {
+        switch self {
+        case .modified:
+            return project.isDirty
+        case .ahead:
+            return project.aheadCount > 0
+        case .behind:
+            return project.behindCount > 0
+        case .upToDate:
+            return !project.hasChanges
+        }
     }
 }
 
