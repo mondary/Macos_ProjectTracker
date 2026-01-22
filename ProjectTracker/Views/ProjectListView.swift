@@ -152,6 +152,7 @@ struct ProjectListView: View {
                 let filtered = viewModel.filteredProjects
                 let changed = sortProjects(filtered.filter { $0.hasChanges })
                 let clean = sortProjects(filtered.filter { !$0.hasChanges })
+                let githubOnly = githubOnlyRepos()
                 
                 if !changed.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
@@ -228,6 +229,22 @@ struct ProjectListView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 60)
                 }
+                
+                if !githubOnly.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        SectionHeader(title: "GitHub uniquement", count: githubOnly.count, accent: Color(red: 0.62, green: 0.74, blue: 0.92))
+                        
+                        if displayMode == .list {
+                            VStack(spacing: 8) {
+                                ForEach(githubOnly, id: \.id) { repo in
+                                    GitHubRepoRow(repo: repo)
+                                }
+                            }
+                        } else {
+                            ColumnGridRepos(repos: githubOnly, columns: displayMode.columnCount)
+                        }
+                    }
+                }
             }
             .padding(20)
         }
@@ -299,6 +316,11 @@ struct ProjectListView: View {
             didCopyLog = false
         }
     }
+
+    private func githubOnlyRepos() -> [GitHubRepo] {
+        let localNames = Set(viewModel.projects.map { $0.name.lowercased() })
+        return viewModel.githubRepos.filter { !localNames.contains($0.name.lowercased()) }
+    }
     
     private var statusLegend: some View {
         HStack(spacing: 8) {
@@ -364,6 +386,7 @@ struct StatCard: View {
 struct ProjectRow: View {
     let project: Project
     let compact: Bool
+    @State private var showReadmeSummary = false
     
     var body: some View {
         HStack(spacing: 12) {
@@ -407,13 +430,6 @@ struct ProjectRow: View {
             Spacer(minLength: 0)
             
                 HStack(spacing: 6) {
-                    LinkIconButton(label: "Ouvrir dans Finder") {
-                        openInFinder()
-                    } content: {
-                        Image(systemName: "folder")
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                
                     if let githubURL = githubWebURL {
                         LinkIconButton(label: "Ouvrir le dépôt GitHub") {
                             NSWorkspace.shared.open(githubURL)
@@ -423,9 +439,30 @@ struct ProjectRow: View {
                     }
                     
                     if project.hasIcon {
-                        StatusBadge(color: .gray, icon: "photo", text: compact ? "" : "icon.png")
-                    } else if !compact {
-                        StatusBadge(color: .orange, icon: "photo.slash", text: "Sans icon")
+                        ProjectIconView(path: project.path)
+                    } else {
+                        StatusBadge(color: .orange, icon: "photo.slash", text: compact ? "" : "Sans icon")
+                    }
+
+                    if project.hasReadme {
+                        Button {
+                            showReadmeSummary.toggle()
+                        } label: {
+                            StatusBadge(color: .indigo, icon: "doc.text", text: compact ? "" : "README")
+                        }
+                        .buttonStyle(.plain)
+                        .popover(isPresented: $showReadmeSummary, arrowEdge: .bottom) {
+                            ReadmeSummaryView(title: project.name, summary: project.summary)
+                        }
+                    } else {
+                        StatusBadge(color: .orange, icon: "doc.text.magnifyingglass", text: compact ? "" : "Sans README")
+                    }
+
+                    LinkIconButton(label: "Ouvrir dans Finder") {
+                        openInFinder()
+                    } content: {
+                        Image(systemName: "folder")
+                            .font(.system(size: 12, weight: .semibold))
                     }
                     
                     if project.isDirty {
@@ -912,6 +949,129 @@ struct StatusBadge: View {
             return Color(nsColor: .systemOrange).opacity(1.0) // System orange is usually beefier
         }
         return color
+    }
+}
+
+struct GitHubRepoRow: View {
+    let repo: GitHubRepo
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            GitHubLogoView()
+                .frame(width: 20, height: 20)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(repo.name)
+                    .font(.system(.subheadline, design: .rounded))
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+                Text(repo.htmlURL)
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            
+            Spacer()
+            
+            LinkIconButton(label: "Ouvrir le dépôt GitHub") {
+                if let url = URL(string: repo.htmlURL) {
+                    NSWorkspace.shared.open(url)
+                }
+            } content: {
+                Image(systemName: "arrow.up.right.square")
+                    .font(.system(size: 12, weight: .semibold))
+            }
+        }
+        .padding(10)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+        )
+    }
+}
+
+struct ProjectIconView: View {
+    let path: String
+    
+    var body: some View {
+        if let image = loadImage() {
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 20, height: 20)
+                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                )
+        } else {
+            StatusBadge(color: .orange, icon: "photo.slash", text: "")
+        }
+    }
+    
+    private func loadImage() -> NSImage? {
+        let url = URL(fileURLWithPath: path).appendingPathComponent("icon.png")
+        return NSImage(contentsOf: url)
+    }
+}
+
+struct ReadmeSummaryView: View {
+    let title: String
+    let summary: String?
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+            
+            Text(summary?.isEmpty == false ? summary! : "Aucun résumé disponible.")
+                .font(.system(size: 11, design: .rounded))
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(width: 280)
+    }
+}
+
+struct ColumnGridRepos: View {
+    let repos: [GitHubRepo]
+    let columns: Int
+    
+    var body: some View {
+        let buckets = distribute(repos, into: max(1, columns))
+        return HStack(alignment: .top, spacing: 8) {
+            ForEach(0..<buckets.count, id: \.self) { index in
+                VStack(spacing: 8) {
+                    ForEach(buckets[index], id: \.id) { repo in
+                        GitHubRepoRow(repo: repo)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
+        }
+    }
+    
+    private func distribute(_ items: [GitHubRepo], into columns: Int) -> [[GitHubRepo]] {
+        guard columns > 0 else { return [] }
+        let total = items.count
+        let chunkSize = Int(ceil(Double(total) / Double(columns)))
+        var result: [[GitHubRepo]] = []
+        result.reserveCapacity(columns)
+        
+        for col in 0..<columns {
+            let start = col * chunkSize
+            let end = min(start + chunkSize, total)
+            if start < end {
+                result.append(Array(items[start..<end]))
+            } else {
+                result.append([])
+            }
+        }
+        return result
     }
 }
 

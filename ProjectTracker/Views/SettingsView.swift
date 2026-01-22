@@ -50,9 +50,61 @@ struct SettingsView: View {
                 }
                 .padding(.vertical, 8)
             }
+
+            Section(header: Text("GitHub").font(.headline)) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Utilisateur")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .frame(width: 90, alignment: .leading)
+                        
+                        TextField("mondary", text: $viewModel.githubUsername)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    
+                    Toggle("Utiliser un token", isOn: $viewModel.githubUseAuth)
+                        .toggleStyle(.switch)
+                    
+                    HStack(alignment: .center) {
+                        Text("Token")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .frame(width: 90, alignment: .leading)
+                        
+                        SecureField("ghp_...", text: $viewModel.githubToken)
+                            .textFieldStyle(.roundedBorder)
+                        
+                        if !viewModel.githubToken.isEmpty {
+                            Button {
+                                viewModel.githubToken = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .disabled(!viewModel.githubUseAuth)
+                    
+                    HStack(spacing: 8) {
+                        Button("Rafraîchir") {
+                            Task {
+                                await viewModel.fetchGitHubRepos()
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        
+                        Text("Mode public par défaut, token optionnel.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.vertical, 8)
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 500, height: 480)
+        .frame(width: 520, height: 580)
         .navigationTitle("Réglages - Project Tracker")
     }
     

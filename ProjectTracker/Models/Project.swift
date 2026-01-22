@@ -13,6 +13,7 @@ struct Project: Identifiable, Codable {
     var remoteURL: String?
     var description: String?
     var hasIcon: Bool
+    var hasReadme: Bool
     
     var hasChanges: Bool {
         isDirty || aheadCount > 0 || behindCount > 0

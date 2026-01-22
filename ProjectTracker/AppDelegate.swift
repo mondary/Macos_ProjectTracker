@@ -17,6 +17,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               let image = NSImage(contentsOf: url) else {
             return
         }
-        NSApp.applicationIconImage = image
+        NSApp.applicationIconImage = squareIcon(from: image)
+    }
+
+    private func squareIcon(from image: NSImage) -> NSImage {
+        let size = image.size
+        let side = max(size.width, size.height)
+        let square = NSImage(size: NSSize(width: side, height: side))
+        square.lockFocus()
+        let origin = NSPoint(x: (side - size.width) / 2, y: (side - size.height) / 2)
+        image.draw(at: origin, from: .zero, operation: .sourceOver, fraction: 1.0)
+        square.unlockFocus()
+        return square
     }
 }

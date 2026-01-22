@@ -51,6 +51,7 @@ actor GitService {
             changes: resolvedStatus
         )
         let description = readReadmeDescription(at: path)
+        let hasReadme = FileManager.default.fileExists(atPath: URL(fileURLWithPath: path).appendingPathComponent("README.md").path)
         let hasIcon = FileManager.default.fileExists(atPath: URL(fileURLWithPath: path).appendingPathComponent("icon.png").path)
         
         return Project(
@@ -64,7 +65,8 @@ actor GitService {
             summary: summary,
             remoteURL: trimmedRemote.isEmpty ? nil : trimmedRemote,
             description: description,
-            hasIcon: hasIcon
+            hasIcon: hasIcon,
+            hasReadme: hasReadme
         )
     }
     

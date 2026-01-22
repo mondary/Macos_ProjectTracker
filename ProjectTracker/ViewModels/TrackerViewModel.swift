@@ -16,6 +16,11 @@ class TrackerViewModel: ObservableObject {
     @AppStorage("cachedLastScan") private var cachedLastScan: Double = 0
     @AppStorage("cachedScanLog") private var cachedScanLog: String = ""
     @Published var lastScanLog: String = ""
+    @AppStorage("githubUsername") var githubUsername: String = "mondary"
+    @AppStorage("githubUseAuth") var githubUseAuth: Bool = false
+    @AppStorage("githubToken") var githubToken: String = ""
+    @AppStorage("cachedGithubRepos") private var cachedGithubReposData: Data = Data()
+    @Published var githubRepos: [GitHubRepo] = []
     
     var filteredProjects: [Project] {
         if searchText.isEmpty {
@@ -30,6 +35,7 @@ class TrackerViewModel: ObservableObject {
         loadCachedProjects()
         loadCachedLastScan()
         loadCachedScanLog()
+        loadCachedGitHubRepos()
         startTimer()
         Task {
             await scan()
@@ -68,6 +74,10 @@ class TrackerViewModel: ObservableObject {
         updateScanLog(start: start, end: lastScanDate ?? Date(), path: path)
         saveCachedProjects()
         isScanning = false
+        
+        Task {
+            await fetchGitHubRepos()
+        }
     }
 
     private func loadCachedProjects() {
@@ -130,5 +140,38 @@ class TrackerViewModel: ObservableObject {
         
         lastScanLog = log
         cachedScanLog = log
+    }
+
+    private func loadCachedGitHubRepos() {
+        guard !cachedGithubReposData.isEmpty else { return }
+        do {
+            let decoded = try JSONDecoder().decode([GitHubRepo].self, from: cachedGithubReposData)
+            githubRepos = decoded
+        } catch {
+            // Ignore cache failures
+        }
+    }
+
+    private func saveCachedGitHubRepos() {
+        do {
+            let encoded = try JSONEncoder().encode(githubRepos)
+            cachedGithubReposData = encoded
+        } catch {
+            // Ignore cache failures
+        }
+    }
+
+    func fetchGitHubRepos() async {
+        let username = githubUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !username.isEmpty else { return }
+        let token = githubUseAuth ? githubToken.trimmingCharacters(in: .whitespacesAndNewlines) : ""
+        
+        do {
+            let repos = try await GitHubService.shared.fetchRepos(username: username, token: token.isEmpty ? nil : token)
+            githubRepos = repos
+            saveCachedGitHubRepos()
+        } catch {
+            // Keep last cached repos if fetch fails
+        }
     }
 }
