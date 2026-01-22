@@ -3,7 +3,9 @@ import SwiftUI
 @main
 struct ProjectTrackerApp: App {
     @StateObject private var viewModel = TrackerViewModel()
-    
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
+
     var body: some Scene {
         MenuBarExtra {
             ProjectListView(viewModel: viewModel)
@@ -19,5 +21,9 @@ struct ProjectTrackerApp: App {
             }
         }
         .menuBarExtraStyle(.window)
+
+        Settings {
+            SettingsView(viewModel: viewModel)
+        }
     }
 }

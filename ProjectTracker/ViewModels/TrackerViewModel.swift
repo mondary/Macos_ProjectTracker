@@ -6,9 +6,20 @@ class TrackerViewModel: ObservableObject {
     @Published var projects: [Project] = []
     @Published var isScanning = false
     @Published var lastScanDate: Date?
+    @Published var searchText: String = ""
     
-    // Default path to scan - could be made configurable
-    private let defaultScanPath = NSString(string: "~/Documents/GitHub").expandingTildeInPath
+    @AppStorage("scanPath") var scanPath: String = NSString(string: "~/Documents/GitHub").expandingTildeInPath
+    @AppStorage("openAIKey") var openAIKey: String = ""
+    @AppStorage("geminiKey") var geminiKey: String = ""
+    @AppStorage("openRouterKey") var openRouterKey: String = ""
+    
+    var filteredProjects: [Project] {
+        if searchText.isEmpty {
+            return projects
+        }
+        return projects.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+    
     private var timer: Timer?
     
     init() {
@@ -32,8 +43,7 @@ class TrackerViewModel: ObservableObject {
         guard !isScanning else { return }
         isScanning = true
         
-        // Run directory scanning on a background thread to avoid blocking main
-        let path = defaultScanPath
+        let path = scanPath
         let scannedProjects = await Task.detached {
             await GitService.shared.scanDirectory(at: path)
         }.value

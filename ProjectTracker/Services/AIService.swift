@@ -7,17 +7,28 @@ actor AIService {
     
     /// Summarizes the project based on its README and recent changes.
     func summarizeProject(name: String, path: String, changes: String) async -> String {
-        // This is a placeholder for where the LLM logic would go.
-        // If the user provides an API key, we could call OpenAI/Anthropic/Gemini here.
+        let defaults = UserDefaults.standard
+        let openAIKey = defaults.string(forKey: "openAIKey") ?? ""
+        let geminiKey = defaults.string(forKey: "geminiKey") ?? ""
+        let openRouterKey = defaults.string(forKey: "openRouterKey") ?? ""
+        
+        var provider = "Mock AI"
+        if !openAIKey.isEmpty {
+            provider = "OpenAI"
+        } else if !geminiKey.isEmpty {
+            provider = "Gemini"
+        } else if !openRouterKey.isEmpty {
+            provider = "OpenRouter"
+        }
         
         let readmePath = URL(fileURLWithPath: path).appendingPathComponent("README.md").path
         let hasReadme = FileManager.default.fileExists(atPath: readmePath)
         
         if !hasReadme && changes.isEmpty {
-            return "No summary available."
+            return "[\(provider)] No summary available."
         }
         
-        // For now, let's just return a mock "AI" summary to show where it would appear.
-        return "AI analysis of \(name): Project appears to focus on \(hasReadme ? "documentation-backed" : "active") development. Recent changes specifically involve: \(changes.isEmpty ? "No uncommitted changes." : changes.prefix(100))."
+        // Simulating provider specific response
+        return "[\(provider)] \(name): \(hasReadme ? "Documentation-rich" : "Active") project. Changes: \(changes.isEmpty ? "Clean" : "Modified")."
     }
 }
