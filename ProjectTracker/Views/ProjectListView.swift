@@ -5,56 +5,17 @@ struct ProjectListView: View {
     @Environment(\.openSettings) private var openSettings
     
     var body: some View {
-        ZStack {
-            background
-            
-            VStack(spacing: 16) {
-                header
-                statsRow
-                searchBar
-                projectContent
-                footer
-            }
-            .padding(20)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .shadow(color: Color.black.opacity(0.08), radius: 20, x: 0, y: 12)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
-            )
-            .padding(18)
+        VStack(spacing: 16) {
+            header
+            statsRow
+            searchBar
+            projectContent
+            footer
         }
-        .frame(width: 720, height: 740)
-    }
-    
-    private var background: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.12, green: 0.15, blue: 0.22),
-                    Color(red: 0.16, green: 0.18, blue: 0.27),
-                    Color(red: 0.20, green: 0.22, blue: 0.30)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            
-            Circle()
-                .fill(Color(red: 0.26, green: 0.44, blue: 0.72).opacity(0.35))
-                .frame(width: 260, height: 260)
-                .blur(radius: 60)
-                .offset(x: -180, y: -220)
-            
-            Circle()
-                .fill(Color(red: 0.80, green: 0.46, blue: 0.28).opacity(0.25))
-                .frame(width: 220, height: 220)
-                .blur(radius: 70)
-                .offset(x: 220, y: 200)
-        }
-        .ignoresSafeArea()
+        .padding(20)
+        .frame(minWidth: 720, minHeight: 640)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
     
     private var header: some View {
@@ -130,8 +91,8 @@ struct ProjectListView: View {
             }
         }
         .padding(12)
-        .background(Color.white.opacity(0.08))
-        .cornerRadius(12)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .cornerRadius(10)
     }
     
     private var projectContent: some View {
@@ -252,8 +213,8 @@ struct StatCard: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .background(Color.white.opacity(0.08))
-        .cornerRadius(12)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .cornerRadius(10)
     }
 }
 
@@ -325,11 +286,11 @@ struct ProjectRow: View {
             .contentShape(Rectangle()) // Make the whole area clickable
         }
         .buttonStyle(.plain) // Remove default button styling
-        .background(Color.white.opacity(0.06))
-        .cornerRadius(12)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .cornerRadius(10)
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.10), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
         )
     }
 }
@@ -366,24 +327,5 @@ struct StatusBadge: View {
             return Color(nsColor: .systemOrange).opacity(1.0) // System orange is usually beefier
         }
         return color
-    }
-}
-
-// Utility view for translucency
-struct VisualEffectView: NSViewRepresentable {
-    let material: NSVisualEffectView.Material
-    let blendingMode: NSVisualEffectView.BlendingMode
-    
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = material
-        view.blendingMode = blendingMode
-        view.state = .active
-        return view
-    }
-    
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.material = material
-        nsView.blendingMode = blendingMode
     }
 }
