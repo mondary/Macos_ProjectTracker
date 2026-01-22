@@ -733,15 +733,15 @@ struct ColumnGrid: View {
 }
 
 enum SortOption: CaseIterable {
-    case status
     case name
     case folder
+    case status
     
     var label: String {
         switch self {
-        case .status: return "Statut"
         case .name: return "Nom"
         case .folder: return "Dossier"
+        case .status: return "Statut"
         }
     }
 }
