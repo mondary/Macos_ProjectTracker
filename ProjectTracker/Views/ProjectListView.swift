@@ -5,12 +5,15 @@ struct ProjectListView: View {
     @ObservedObject var viewModel: TrackerViewModel
     @Environment(\.openSettings) private var openSettings
     @State private var displayMode: DisplayMode = .twoColumns
+    @State private var sortOption: SortOption = .status
+    @State private var sortAscending = true
     
     var body: some View {
         VStack(spacing: 16) {
             header
             statsRow
             searchRow
+            statusLegend
             projectContent
             footer
         }
@@ -26,19 +29,6 @@ struct ProjectListView: View {
                 Text("Project Tracker")
                     .font(.system(size: 26, weight: .bold, design: .serif))
                 
-                Text("Vue d'ensemble des dépôts surveillés")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundColor(.secondary)
-                
-                HStack(spacing: 4) {
-                    Text("Surveillance :")
-                        .fontWeight(.semibold)
-                    Text(viewModel.scanPath)
-                }
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundColor(.secondary.opacity(0.8))
-                .lineLimit(1)
-                .truncationMode(.head)
             }
             
             Spacer()
@@ -80,6 +70,7 @@ struct ProjectListView: View {
         HStack(spacing: 10) {
             searchBar
             displayModeControl
+            sortControl
         }
     }
     
@@ -113,13 +104,47 @@ struct ProjectListView: View {
         .pickerStyle(.segmented)
         .frame(width: 180)
     }
+
+    private var sortControl: some View {
+        HStack(spacing: 6) {
+            Menu {
+                Picker("Trier par", selection: $sortOption) {
+                    ForEach(SortOption.allCases, id: \.self) { option in
+                        Text(option.label).tag(option)
+                    }
+                }
+            } label: {
+                Label("Trier", systemImage: "line.3.horizontal.decrease.circle")
+                    .labelStyle(.iconOnly)
+                    .frame(width: 28, height: 28)
+            }
+            .menuStyle(.borderlessButton)
+            .help("Trier par")
+
+            Button {
+                sortAscending.toggle()
+            } label: {
+                Image(systemName: sortAscending ? "arrow.up" : "arrow.down")
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.plain)
+            .help(sortAscending ? "Ordre croissant" : "Ordre décroissant")
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+            )
+        }
+        .frame(width: 68)
+    }
     
     private var projectContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 let filtered = viewModel.filteredProjects
-                let changed = filtered.filter { $0.hasChanges }
-                let clean = filtered.filter { !$0.hasChanges }
+                let changed = sortProjects(filtered.filter { $0.hasChanges })
+                let clean = sortProjects(filtered.filter { !$0.hasChanges })
                 
                 if !changed.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
@@ -181,7 +206,20 @@ struct ProjectListView: View {
     
     private var footer: some View {
         HStack {
+            HStack(spacing: 4) {
+                Text("Surveillance :")
+                    .fontWeight(.semibold)
+                Text(viewModel.scanPath)
+            }
+            .font(.system(size: 10, design: .monospaced))
+            .foregroundColor(.secondary.opacity(0.8))
+            .lineLimit(1)
+            .truncationMode(.head)
+            
             if let lastScan = viewModel.lastScanDate {
+                Text("•")
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundColor(.secondary)
                 Text("Scan : \(lastScan, style: .time)")
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundColor(.secondary)
@@ -204,6 +242,16 @@ struct ProjectListView: View {
         }
         .padding(.vertical, 2)
         .frame(height: 22)
+    }
+    
+    private var statusLegend: some View {
+        HStack(spacing: 8) {
+            LegendItem(color: .red, icon: "pencil", text: "Modifié")
+            LegendItem(color: .blue, icon: "arrow.up", text: "À envoyer")
+            LegendItem(color: .purple, icon: "arrow.down", text: "En retard")
+            LegendItem(color: .green, icon: "checkmark.seal.fill", text: "À jour")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -461,6 +509,54 @@ enum DisplayMode: CaseIterable {
     }
 }
 
+enum SortOption: CaseIterable {
+    case status
+    case name
+    case folder
+    
+    var label: String {
+        switch self {
+        case .status: return "Statut"
+        case .name: return "Nom"
+        case .folder: return "Dossier"
+        }
+    }
+}
+
+extension ProjectListView {
+    private func sortProjects(_ projects: [Project]) -> [Project] {
+        let sorted = projects.sorted { lhs, rhs in
+            switch sortOption {
+            case .name:
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            case .folder:
+                let leftFolder = URL(fileURLWithPath: lhs.path).deletingLastPathComponent().path
+                let rightFolder = URL(fileURLWithPath: rhs.path).deletingLastPathComponent().path
+                if leftFolder == rightFolder {
+                    return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+                }
+                return leftFolder.localizedCaseInsensitiveCompare(rightFolder) == .orderedAscending
+            case .status:
+                let leftRank = statusRank(for: lhs)
+                let rightRank = statusRank(for: rhs)
+                if leftRank == rightRank {
+                    return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+                }
+                return leftRank < rightRank
+            }
+        }
+        
+        return sortAscending ? sorted : sorted.reversed()
+    }
+    
+    private func statusRank(for project: Project) -> Int {
+        if project.isDirty { return 0 }
+        if project.aheadCount > 0 { return 1 }
+        if project.behindCount > 0 { return 2 }
+        return 3
+    }
+}
+
 struct StatusBadge: View {
     let color: Color
     let icon: String
@@ -493,5 +589,20 @@ struct StatusBadge: View {
             return Color(nsColor: .systemOrange).opacity(1.0) // System orange is usually beefier
         }
         return color
+    }
+}
+
+struct LegendItem: View {
+    let color: Color
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            StatusBadge(color: color, icon: icon, text: "")
+            Text(text)
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .foregroundColor(.secondary)
+        }
     }
 }

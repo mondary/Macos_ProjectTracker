@@ -13,6 +13,7 @@ class TrackerViewModel: ObservableObject {
     @AppStorage("geminiKey") var geminiKey: String = ""
     @AppStorage("openRouterKey") var openRouterKey: String = ""
     @AppStorage("cachedProjects") private var cachedProjectsData: Data = Data()
+    @AppStorage("cachedLastScan") private var cachedLastScan: Double = 0
     
     var filteredProjects: [Project] {
         if searchText.isEmpty {
@@ -25,6 +26,7 @@ class TrackerViewModel: ObservableObject {
     
     init() {
         loadCachedProjects()
+        loadCachedLastScan()
         startTimer()
         Task {
             await scan()
@@ -58,6 +60,7 @@ class TrackerViewModel: ObservableObject {
         }
         
         lastScanDate = Date()
+        saveCachedLastScan()
         saveCachedProjects()
         isScanning = false
     }
@@ -79,5 +82,15 @@ class TrackerViewModel: ObservableObject {
         } catch {
             // Ignore cache failures to avoid blocking scanning
         }
+    }
+
+    private func loadCachedLastScan() {
+        guard cachedLastScan > 0 else { return }
+        lastScanDate = Date(timeIntervalSince1970: cachedLastScan)
+    }
+
+    private func saveCachedLastScan() {
+        guard let lastScanDate else { return }
+        cachedLastScan = lastScanDate.timeIntervalSince1970
     }
 }
