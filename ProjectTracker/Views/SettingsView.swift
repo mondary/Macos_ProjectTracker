@@ -5,7 +5,7 @@ struct SettingsView: View {
     
     var body: some View {
         Form {
-            Section(header: Text("Configuration").font(.headline)) {
+            Section(header: Label("Configuration", systemImage: "slider.horizontal.3").font(.headline)) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Dossier à surveiller")
                         .font(.subheadline)
@@ -30,7 +30,7 @@ struct SettingsView: View {
                 .padding(.vertical, 8)
             }
             
-            Section(header: Text("IA Summarizer").font(.headline)) {
+            Section(header: Label("IA Summarizer", systemImage: "sparkles").font(.headline)) {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Configuration des clés API")
                         .font(.subheadline)
@@ -47,11 +47,18 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    HStack(spacing: 8) {
+                        Link("Clé OpenAI", destination: URL(string: "https://platform.openai.com/api-keys")!)
+                        Link("Clé Gemini", destination: URL(string: "https://aistudio.google.com/app/apikey")!)
+                        Link("Clé OpenRouter", destination: URL(string: "https://openrouter.ai/keys")!)
+                    }
+                    .font(.caption)
                 }
                 .padding(.vertical, 8)
             }
 
-            Section(header: Text("GitHub").font(.headline)) {
+            Section(header: Label("GitHub", systemImage: "link").font(.headline)) {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .firstTextBaseline) {
                         Text("Utilisateur")
@@ -99,6 +106,9 @@ struct SettingsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
+                    
+                    Link("Créer un token GitHub", destination: URL(string: "https://github.com/settings/tokens")!)
+                        .font(.caption)
                 }
                 .padding(.vertical, 8)
             }

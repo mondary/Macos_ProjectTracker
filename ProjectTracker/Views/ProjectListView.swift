@@ -390,12 +390,20 @@ struct ProjectRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: compact ? 2 : 4) {
-                Text(project.name)
-                    .font(.system(compact ? .callout : .subheadline, design: .rounded))
-                    .fontWeight(.semibold)
-                    .lineLimit(1)
-                
+                VStack(alignment: .leading, spacing: compact ? 2 : 4) {
+                    HStack(spacing: 6) {
+                        if project.hasIcon {
+                            ProjectIconView(path: project.path)
+                        } else {
+                            StatusBadge(color: .gray, icon: "photo", text: "")
+                        }
+                        
+                        Text(project.name)
+                            .font(.system(compact ? .callout : .subheadline, design: .rounded))
+                            .fontWeight(.semibold)
+                            .lineLimit(1)
+                    }
+                    
                     if !compact {
                         Text(project.path)
                             .font(.system(size: 9, design: .monospaced))
@@ -430,20 +438,6 @@ struct ProjectRow: View {
             Spacer(minLength: 0)
             
                 HStack(spacing: 6) {
-                    if let githubURL = githubWebURL {
-                        LinkIconButton(label: "Ouvrir le dépôt GitHub") {
-                            NSWorkspace.shared.open(githubURL)
-                        } content: {
-                            GitHubLogoView()
-                        }
-                    }
-                    
-                    if project.hasIcon {
-                        ProjectIconView(path: project.path)
-                    } else {
-                        StatusBadge(color: .orange, icon: "photo.slash", text: compact ? "" : "Sans icon")
-                    }
-
                     if project.hasReadme {
                         Button {
                             showReadmeSummary.toggle()
@@ -456,6 +450,14 @@ struct ProjectRow: View {
                         }
                     } else {
                         StatusBadge(color: .orange, icon: "doc.text.magnifyingglass", text: compact ? "" : "Sans README")
+                    }
+
+                    if let githubURL = githubWebURL {
+                        LinkIconButton(label: "Ouvrir le dépôt GitHub") {
+                            NSWorkspace.shared.open(githubURL)
+                        } content: {
+                            GitHubLogoView()
+                        }
                     }
 
                     LinkIconButton(label: "Ouvrir dans Finder") {
@@ -1008,7 +1010,7 @@ struct ProjectIconView: View {
                         .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
                 )
         } else {
-            StatusBadge(color: .orange, icon: "photo.slash", text: "")
+            StatusBadge(color: .gray, icon: "photo", text: "")
         }
     }
     
