@@ -1,0 +1,13 @@
+# Fichiers générés
+projects.json
+tracker.log
+
+# Config avec secrets
+config.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env

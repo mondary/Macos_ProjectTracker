@@ -40,8 +40,10 @@ actor GitService {
         async let branch = runGitCommand(args: ["rev-parse", "--abbrev-ref", "HEAD"], at: path)
         async let status = runGitCommand(args: ["status", "--porcelain"], at: path)
         async let counts = getAheadBehindCount(at: path)
+        async let remote = runGitCommand(args: ["remote", "get-url", "origin"], at: path)
         
-        let (resolvedBranch, resolvedStatus, resolvedCounts) = await (branch, status, counts)
+        let (resolvedBranch, resolvedStatus, resolvedCounts, resolvedRemote) = await (branch, status, counts, remote)
+        let trimmedRemote = resolvedRemote.trimmingCharacters(in: .whitespacesAndNewlines)
         
         let summary = await AIService.shared.summarizeProject(
             name: name,
@@ -57,7 +59,8 @@ actor GitService {
             aheadCount: resolvedCounts.ahead,
             behindCount: resolvedCounts.behind,
             branch: resolvedBranch.trimmingCharacters(in: .whitespacesAndNewlines),
-            summary: summary
+            summary: summary,
+            remoteURL: trimmedRemote.isEmpty ? nil : trimmedRemote
         )
     }
     

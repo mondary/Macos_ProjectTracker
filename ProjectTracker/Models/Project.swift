@@ -10,8 +10,18 @@ struct Project: Identifiable, Codable {
     var behindCount: Int
     var branch: String
     var summary: String?
+    var remoteURL: String?
     
     var hasChanges: Bool {
         isDirty || aheadCount > 0 || behindCount > 0
+    }
+
+    var isLinkedToGitHub: Bool {
+        guard let remoteURL, !remoteURL.isEmpty else { return false }
+        return remoteURL.localizedCaseInsensitiveContains("github.com")
+    }
+
+    var isUpToDate: Bool {
+        !hasChanges
     }
 }

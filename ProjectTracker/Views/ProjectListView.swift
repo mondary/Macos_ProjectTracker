@@ -5,46 +5,74 @@ struct ProjectListView: View {
     @Environment(\.openSettings) private var openSettings
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
+        ZStack {
+            background
             
-            Divider()
-            
-            searchBar
-            
-            Divider()
-            
-            projectContent
-            
-            Divider()
-            
-            footer
+            VStack(spacing: 16) {
+                header
+                statsRow
+                searchBar
+                projectContent
+                footer
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .shadow(color: Color.black.opacity(0.08), radius: 20, x: 0, y: 12)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+            )
+            .padding(18)
         }
-        .frame(width: 500) // Much wider for clarity
-        .background(VisualEffectView(material: .menu, blendingMode: .behindWindow))
+        .frame(width: 720, height: 740)
+    }
+    
+    private var background: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.12, green: 0.15, blue: 0.22),
+                    Color(red: 0.16, green: 0.18, blue: 0.27),
+                    Color(red: 0.20, green: 0.22, blue: 0.30)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            
+            Circle()
+                .fill(Color(red: 0.26, green: 0.44, blue: 0.72).opacity(0.35))
+                .frame(width: 260, height: 260)
+                .blur(radius: 60)
+                .offset(x: -180, y: -220)
+            
+            Circle()
+                .fill(Color(red: 0.80, green: 0.46, blue: 0.28).opacity(0.25))
+                .frame(width: 220, height: 220)
+                .blur(radius: 70)
+                .offset(x: 220, y: 200)
+        }
+        .ignoresSafeArea()
     }
     
     private var header: some View {
-        HStack {
+        HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Tableau de bord")
-                    .font(.system(.title3, design: .rounded))
-                    .fontWeight(.bold)
+                Text("Project Tracker")
+                    .font(.system(size: 26, weight: .bold, design: .serif))
                 
-                HStack(spacing: 12) {
-                    Label("\(viewModel.projects.count) Projets", systemImage: "folder.fill")
-                    Label("\(viewModel.projects.filter({$0.hasChanges}).count) Notifications", systemImage: "bell.badge.fill")
-                        .foregroundColor(viewModel.projects.filter({$0.hasChanges}).count > 0 ? .red : .secondary)
-                }
-                .font(.system(.caption2, design: .rounded))
-                .foregroundColor(.secondary)
+                Text("Vue d'ensemble des dépôts surveillés")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundColor(.secondary)
                 
                 HStack(spacing: 4) {
                     Text("Surveillance :")
                         .fontWeight(.semibold)
                     Text(viewModel.scanPath)
                 }
-                .font(.system(size: 9, design: .monospaced))
+                .font(.system(size: 10, design: .monospaced))
                 .foregroundColor(.secondary.opacity(0.8))
                 .lineLimit(1)
                 .truncationMode(.head)
@@ -54,19 +82,35 @@ struct ProjectListView: View {
             
             if viewModel.isScanning {
                 ProgressView()
-                    .controlSize(.small)
+                    .controlSize(.regular)
             } else {
                 Button(action: {
                     Task { await viewModel.scan() }
                 }) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 14, weight: .bold))
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Scanner")
+                    }
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.borderedProminent)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.top, 4)
+    }
+    
+    private var statsRow: some View {
+        let total = viewModel.projects.count
+        let needsAttention = viewModel.projects.filter { $0.hasChanges }.count
+        let upToDate = viewModel.projects.filter { $0.isUpToDate }.count
+        let linked = viewModel.projects.filter { $0.isLinkedToGitHub }.count
+        
+        return HStack(spacing: 12) {
+            StatCard(title: "Total", value: "\(total)", icon: "tray.full", tint: Color(red: 0.46, green: 0.64, blue: 0.90))
+            StatCard(title: "À jour", value: "\(upToDate)", icon: "checkmark.seal.fill", tint: Color(red: 0.48, green: 0.78, blue: 0.55))
+            StatCard(title: "Attention", value: "\(needsAttention)", icon: "exclamationmark.triangle.fill", tint: Color(red: 0.90, green: 0.56, blue: 0.36))
+            StatCard(title: "GitHub", value: "\(linked)", icon: "link.circle.fill", tint: Color(red: 0.62, green: 0.74, blue: 0.92))
+        }
     }
     
     private var searchBar: some View {
@@ -85,11 +129,9 @@ struct ProjectListView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(10)
-        .background(Color.primary.opacity(0.05))
-        .cornerRadius(8)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(12)
+        .background(Color.white.opacity(0.08))
+        .cornerRadius(12)
     }
     
     private var projectContent: some View {
@@ -101,7 +143,7 @@ struct ProjectListView: View {
                 
                 if !changed.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
-                        SectionHeader(title: "Actions requises", count: changed.count)
+                        SectionHeader(title: "Actions requises", count: changed.count, accent: Color(red: 0.92, green: 0.54, blue: 0.36))
                         ForEach(changed) { project in
                             ProjectRow(project: project, compact: false)
                         }
@@ -110,7 +152,7 @@ struct ProjectListView: View {
                 
                 if !clean.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
-                        SectionHeader(title: "Tout est à jour", count: clean.count)
+                        SectionHeader(title: "Tout est à jour", count: clean.count, accent: Color(red: 0.48, green: 0.78, blue: 0.55))
                         
                         // Using a grid for clean projects to save vertical space
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
@@ -136,7 +178,7 @@ struct ProjectListView: View {
             }
             .padding(20)
         }
-        .frame(maxHeight: 550) // Increased height
+        .frame(maxHeight: 520)
     }
     
     private var footer: some View {
@@ -152,8 +194,8 @@ struct ProjectListView: View {
             Button("Réglages") {
                 openSettings()
             }
-                .buttonStyle(.link)
-                .font(.system(.caption, design: .rounded))
+            .buttonStyle(.link)
+            .font(.system(.caption, design: .rounded))
             
             Button("Quitter") {
                 NSApplication.shared.terminate(nil)
@@ -162,26 +204,56 @@ struct ProjectListView: View {
             .controlSize(.small)
             .font(.system(.caption, design: .rounded))
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
     }
 }
 
 struct SectionHeader: View {
     let title: String
     let count: Int
+    let accent: Color
     var body: some View {
         HStack {
             Text(title.uppercased())
             Spacer()
             Text("\(count)")
                 .padding(.horizontal, 6)
-                .background(Color.primary.opacity(0.1))
+                .background(accent.opacity(0.2))
                 .cornerRadius(4)
         }
         .font(.system(size: 11, weight: .bold, design: .rounded))
-        .foregroundColor(.secondary)
+        .foregroundColor(accent.opacity(0.9))
         .padding(.bottom, 4)
+    }
+}
+
+struct StatCard: View {
+    let title: String
+    let value: String
+    let icon: String
+    let tint: Color
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundColor(tint)
+                .font(.system(size: 16, weight: .semibold))
+                .frame(width: 28, height: 28)
+                .background(tint.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                Text(title)
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(Color.white.opacity(0.08))
+        .cornerRadius(12)
     }
 }
 
@@ -203,6 +275,12 @@ struct ProjectRow: View {
                         .lineLimit(1)
                     
                     if !compact {
+                        Text(project.path)
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundColor(.secondary.opacity(0.8))
+                            .lineLimit(1)
+                            .truncationMode(.head)
+                        
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.branch")
                                 .font(.system(size: 9))
@@ -223,6 +301,12 @@ struct ProjectRow: View {
                 Spacer(minLength: 0)
                 
                 HStack(spacing: 6) {
+                    if project.isLinkedToGitHub {
+                        StatusBadge(color: .teal, icon: "link", text: compact ? "" : "GitHub")
+                    } else if !compact {
+                        StatusBadge(color: .orange, icon: "link.slash", text: "Non lié")
+                    }
+                    
                     if project.isDirty {
                         StatusBadge(color: .red, icon: "pencil", text: compact ? "" : "Modifié")
                     }
@@ -232,10 +316,8 @@ struct ProjectRow: View {
                     if project.behindCount > 0 {
                         StatusBadge(color: .purple, icon: "arrow.down", text: compact ? "\(project.behindCount)" : "\(project.behindCount) en retard")
                     }
-                    if !project.hasChanges && !compact {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green.opacity(0.7))
-                            .font(.system(size: 12))
+                    if project.isUpToDate && !compact {
+                        StatusBadge(color: .green, icon: "checkmark.seal.fill", text: "À jour")
                     }
                 }
             }
@@ -243,11 +325,11 @@ struct ProjectRow: View {
             .contentShape(Rectangle()) // Make the whole area clickable
         }
         .buttonStyle(.plain) // Remove default button styling
-        .background(Color.primary.opacity(0.04))
-        .cornerRadius(8)
+        .background(Color.white.opacity(0.06))
+        .cornerRadius(12)
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.primary.opacity(0.05), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.white.opacity(0.10), lineWidth: 1)
         )
     }
 }
