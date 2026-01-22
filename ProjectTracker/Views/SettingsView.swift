@@ -87,6 +87,17 @@ struct APIKeyField: View {
             
             SecureField("sk-...", text: $text)
                 .textFieldStyle(.roundedBorder)
+
+            if !text.isEmpty {
+                Button {
+                    text = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                        .accessibilityLabel("Supprimer la clé \(label)")
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 }
