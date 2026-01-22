@@ -4,11 +4,13 @@ import AppKit
 struct ProjectListView: View {
     @ObservedObject var viewModel: TrackerViewModel
     @Environment(\.openSettings) private var openSettings
+    @State private var displayMode: DisplayMode = .twoColumns
     
     var body: some View {
         VStack(spacing: 16) {
             header
             statsRow
+            displayModeControl
             searchBar
             projectContent
             footer
@@ -95,6 +97,15 @@ struct ProjectListView: View {
         .background(Color(nsColor: .controlBackgroundColor))
         .cornerRadius(10)
     }
+
+    private var displayModeControl: some View {
+        Picker("Affichage", selection: $displayMode) {
+            ForEach(DisplayMode.allCases, id: \.self) { mode in
+                Text(mode.label).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
     
     private var projectContent: some View {
         ScrollView {
@@ -116,10 +127,17 @@ struct ProjectListView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         SectionHeader(title: "Tout est à jour", count: clean.count, accent: Color(red: 0.48, green: 0.78, blue: 0.55))
                         
-                        // Using a grid for clean projects to save vertical space
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                            ForEach(clean) { project in
-                                ProjectRow(project: project, compact: true)
+                        if displayMode == .list {
+                            VStack(spacing: 8) {
+                                ForEach(clean) { project in
+                                    ProjectRow(project: project, compact: false)
+                                }
+                            }
+                        } else {
+                            LazyVGrid(columns: displayMode.columns, spacing: 8) {
+                                ForEach(clean) { project in
+                                    ProjectRow(project: project, compact: displayMode.compactRows)
+                                }
                             }
                         }
                     }
@@ -260,7 +278,7 @@ struct ProjectRow: View {
             
             Spacer(minLength: 0)
             
-            HStack(spacing: 6) {
+                HStack(spacing: 6) {
                 LinkIconButton(label: "Ouvrir dans Finder") {
                     openInFinder()
                 } content: {
@@ -274,12 +292,6 @@ struct ProjectRow: View {
                     } content: {
                         GitHubLogoView()
                     }
-                }
-                
-                if project.isLinkedToGitHub {
-                    StatusBadge(color: .teal, icon: "link", text: compact ? "" : "GitHub")
-                } else if !compact {
-                    StatusBadge(color: .orange, icon: "link.slash", text: "Non lié")
                 }
                 
                 if project.isDirty {
@@ -382,6 +394,44 @@ struct GitHubLogoView: View {
         }
         image.isTemplate = true
         return image
+    }
+}
+
+enum DisplayMode: CaseIterable {
+    case list
+    case twoColumns
+    case threeColumns
+    case compact
+    
+    var label: String {
+        switch self {
+        case .list: return "Liste"
+        case .twoColumns: return "2 colonnes"
+        case .threeColumns: return "3 colonnes"
+        case .compact: return "Compact"
+        }
+    }
+    
+    var columns: [GridItem] {
+        switch self {
+        case .twoColumns:
+            return [GridItem(.flexible()), GridItem(.flexible())]
+        case .threeColumns:
+            return [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+        case .compact:
+            return [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+        case .list:
+            return []
+        }
+    }
+    
+    var compactRows: Bool {
+        switch self {
+        case .list:
+            return false
+        case .twoColumns, .threeColumns, .compact:
+            return true
+        }
     }
 }
 
