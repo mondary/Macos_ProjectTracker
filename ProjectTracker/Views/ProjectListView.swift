@@ -10,8 +10,7 @@ struct ProjectListView: View {
         VStack(spacing: 16) {
             header
             statsRow
-            displayModeControl
-            searchBar
+            searchRow
             projectContent
             footer
         }
@@ -77,6 +76,13 @@ struct ProjectListView: View {
         }
     }
     
+    private var searchRow: some View {
+        HStack(spacing: 10) {
+            searchBar
+            displayModeControl
+        }
+    }
+    
     private var searchBar: some View {
         HStack {
             Image(systemName: "magnifyingglass")
@@ -101,10 +107,11 @@ struct ProjectListView: View {
     private var displayModeControl: some View {
         Picker("Affichage", selection: $displayMode) {
             ForEach(DisplayMode.allCases, id: \.self) { mode in
-                Text(mode.label).tag(mode)
+                Image(systemName: mode.icon).tag(mode)
             }
         }
         .pickerStyle(.segmented)
+        .frame(width: 180)
     }
     
     private var projectContent: some View {
@@ -117,8 +124,18 @@ struct ProjectListView: View {
                 if !changed.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         SectionHeader(title: "Actions requises", count: changed.count, accent: Color(red: 0.92, green: 0.54, blue: 0.36))
-                        ForEach(changed) { project in
-                            ProjectRow(project: project, compact: false)
+                        if displayMode == .list {
+                            VStack(spacing: 8) {
+                                ForEach(changed) { project in
+                                    ProjectRow(project: project, compact: false)
+                                }
+                            }
+                        } else {
+                            LazyVGrid(columns: displayMode.columns, spacing: 8) {
+                                ForEach(changed) { project in
+                                    ProjectRow(project: project, compact: displayMode.compactRows)
+                                }
+                            }
                         }
                     }
                 }
@@ -409,6 +426,15 @@ enum DisplayMode: CaseIterable {
         case .twoColumns: return "2 colonnes"
         case .threeColumns: return "3 colonnes"
         case .compact: return "Compact"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .list: return "list.bullet"
+        case .twoColumns: return "rectangle.grid.2x2"
+        case .threeColumns: return "rectangle.grid.3x2"
+        case .compact: return "square.grid.4x3.fill"
         }
     }
     
