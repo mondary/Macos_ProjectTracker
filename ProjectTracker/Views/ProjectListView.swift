@@ -373,26 +373,33 @@ struct ProjectRow: View {
                     .fontWeight(.semibold)
                     .lineLimit(1)
                 
-                if !compact {
-                    Text(project.path)
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundColor(.secondary.opacity(0.8))
-                        .lineLimit(1)
-                        .truncationMode(.head)
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.branch")
-                            .font(.system(size: 9))
-                        Text(project.branch)
-                            .font(.system(size: 10, design: .monospaced))
-                    }
-                    .foregroundColor(.secondary)
-                    
-                    if let summary = project.summary {
-                        Text(summary)
-                            .font(.system(size: 9))
+                    if !compact {
+                        Text(project.path)
+                            .font(.system(size: 9, design: .monospaced))
                             .foregroundColor(.secondary.opacity(0.8))
                             .lineLimit(1)
+                            .truncationMode(.head)
+                        
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.branch")
+                                .font(.system(size: 9))
+                            Text(project.branch)
+                                .font(.system(size: 10, design: .monospaced))
+                        }
+                        .foregroundColor(.secondary)
+                        
+                        if let description = project.description, !description.isEmpty {
+                            Text(description)
+                                .font(.system(size: 10, weight: .medium, design: .rounded))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                        
+                        if let summary = project.summary {
+                            Text(summary)
+                                .font(.system(size: 9))
+                                .foregroundColor(.secondary.opacity(0.8))
+                                .lineLimit(1)
                     }
                 }
             }
@@ -400,24 +407,30 @@ struct ProjectRow: View {
             Spacer(minLength: 0)
             
                 HStack(spacing: 6) {
-                LinkIconButton(label: "Ouvrir dans Finder") {
-                    openInFinder()
-                } content: {
-                    Image(systemName: "folder")
-                        .font(.system(size: 12, weight: .semibold))
-                }
-                
-                if let githubURL = githubWebURL {
-                    LinkIconButton(label: "Ouvrir le dépôt GitHub") {
-                        NSWorkspace.shared.open(githubURL)
+                    LinkIconButton(label: "Ouvrir dans Finder") {
+                        openInFinder()
                     } content: {
-                        GitHubLogoView()
+                        Image(systemName: "folder")
+                            .font(.system(size: 12, weight: .semibold))
                     }
-                }
                 
-                if project.isDirty {
-                    StatusBadge(color: .red, icon: "pencil", text: compact ? "" : "Modifié")
-                }
+                    if let githubURL = githubWebURL {
+                        LinkIconButton(label: "Ouvrir le dépôt GitHub") {
+                            NSWorkspace.shared.open(githubURL)
+                        } content: {
+                            GitHubLogoView()
+                        }
+                    }
+                    
+                    if project.hasIcon {
+                        StatusBadge(color: .gray, icon: "photo", text: compact ? "" : "icon.png")
+                    } else if !compact {
+                        StatusBadge(color: .orange, icon: "photo.slash", text: "Sans icon")
+                    }
+                    
+                    if project.isDirty {
+                        StatusBadge(color: .red, icon: "pencil", text: compact ? "" : "Modifié")
+                    }
                 if project.aheadCount > 0 {
                     StatusBadge(color: .blue, icon: "arrow.up", text: compact ? "\(project.aheadCount)" : "\(project.aheadCount) à envoyer")
                 }

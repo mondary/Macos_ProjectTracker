@@ -11,6 +11,8 @@ struct Project: Identifiable, Codable {
     var branch: String
     var summary: String?
     var remoteURL: String?
+    var description: String?
+    var hasIcon: Bool
     
     var hasChanges: Bool {
         isDirty || aheadCount > 0 || behindCount > 0

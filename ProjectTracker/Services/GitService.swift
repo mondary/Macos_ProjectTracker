@@ -50,6 +50,8 @@ actor GitService {
             path: path,
             changes: resolvedStatus
         )
+        let description = readReadmeDescription(at: path)
+        let hasIcon = FileManager.default.fileExists(atPath: URL(fileURLWithPath: path).appendingPathComponent("icon.png").path)
         
         return Project(
             name: name,
@@ -60,7 +62,9 @@ actor GitService {
             behindCount: resolvedCounts.behind,
             branch: resolvedBranch.trimmingCharacters(in: .whitespacesAndNewlines),
             summary: summary,
-            remoteURL: trimmedRemote.isEmpty ? nil : trimmedRemote
+            remoteURL: trimmedRemote.isEmpty ? nil : trimmedRemote,
+            description: description,
+            hasIcon: hasIcon
         )
     }
     
@@ -90,5 +94,25 @@ actor GitService {
         } catch {
             return ""
         }
+    }
+
+    private func readReadmeDescription(at path: String) -> String? {
+        let readmeURL = URL(fileURLWithPath: path).appendingPathComponent("README.md")
+        guard let data = try? Data(contentsOf: readmeURL),
+              let content = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        
+        for line in content.split(separator: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty { continue }
+            if trimmed.hasPrefix("#") {
+                let cleaned = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "# ").union(.whitespaces))
+                if !cleaned.isEmpty { return cleaned }
+                continue
+            }
+            return String(trimmed)
+        }
+        return nil
     }
 }
