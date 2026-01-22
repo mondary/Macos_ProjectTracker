@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct ProjectListView: View {
     @ObservedObject var viewModel: TrackerViewModel
@@ -139,14 +140,15 @@ struct ProjectListView: View {
             }
             .padding(20)
         }
-        .frame(maxHeight: 520)
+        .frame(maxHeight: .infinity)
+        .layoutPriority(1)
     }
     
     private var footer: some View {
         HStack {
             if let lastScan = viewModel.lastScanDate {
-                Text("Dernier scan : \(lastScan, style: .time)")
-                    .font(.system(.caption2, design: .rounded))
+                Text("Scan : \(lastScan, style: .time)")
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundColor(.secondary)
             }
             
@@ -156,15 +158,17 @@ struct ProjectListView: View {
                 openSettings()
             }
             .buttonStyle(.link)
-            .font(.system(.caption, design: .rounded))
+            .font(.system(size: 10, weight: .semibold, design: .rounded))
             
             Button("Quitter") {
                 NSApplication.shared.terminate(nil)
             }
             .buttonStyle(.bordered)
-            .controlSize(.small)
-            .font(.system(.caption, design: .rounded))
+            .controlSize(.mini)
+            .font(.system(size: 10, weight: .semibold, design: .rounded))
         }
+        .padding(.vertical, 2)
+        .frame(height: 22)
     }
 }
 
@@ -223,75 +227,161 @@ struct ProjectRow: View {
     let compact: Bool
     
     var body: some View {
-        Button(action: {
-            if let url = URL(string: "file://\(project.path)") {
-                NSWorkspace.shared.open(url)
-            }
-        }) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: compact ? 2 : 4) {
-                    Text(project.name)
-                        .font(.system(compact ? .callout : .subheadline, design: .rounded))
-                        .fontWeight(.semibold)
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: compact ? 2 : 4) {
+                Text(project.name)
+                    .font(.system(compact ? .callout : .subheadline, design: .rounded))
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+                
+                if !compact {
+                    Text(project.path)
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundColor(.secondary.opacity(0.8))
                         .lineLimit(1)
+                        .truncationMode(.head)
                     
-                    if !compact {
-                        Text(project.path)
-                            .font(.system(size: 9, design: .monospaced))
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.branch")
+                            .font(.system(size: 9))
+                        Text(project.branch)
+                            .font(.system(size: 10, design: .monospaced))
+                    }
+                    .foregroundColor(.secondary)
+                    
+                    if let summary = project.summary {
+                        Text(summary)
+                            .font(.system(size: 9))
                             .foregroundColor(.secondary.opacity(0.8))
                             .lineLimit(1)
-                            .truncationMode(.head)
-                        
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.branch")
-                                .font(.system(size: 9))
-                            Text(project.branch)
-                                .font(.system(size: 10, design: .monospaced))
-                        }
-                        .foregroundColor(.secondary)
-                        
-                        if let summary = project.summary {
-                            Text(summary)
-                                .font(.system(size: 9))
-                                .foregroundColor(.secondary.opacity(0.8))
-                                .lineLimit(1)
-                        }
-                    }
-                }
-                
-                Spacer(minLength: 0)
-                
-                HStack(spacing: 6) {
-                    if project.isLinkedToGitHub {
-                        StatusBadge(color: .teal, icon: "link", text: compact ? "" : "GitHub")
-                    } else if !compact {
-                        StatusBadge(color: .orange, icon: "link.slash", text: "Non lié")
-                    }
-                    
-                    if project.isDirty {
-                        StatusBadge(color: .red, icon: "pencil", text: compact ? "" : "Modifié")
-                    }
-                    if project.aheadCount > 0 {
-                        StatusBadge(color: .blue, icon: "arrow.up", text: compact ? "\(project.aheadCount)" : "\(project.aheadCount) à envoyer")
-                    }
-                    if project.behindCount > 0 {
-                        StatusBadge(color: .purple, icon: "arrow.down", text: compact ? "\(project.behindCount)" : "\(project.behindCount) en retard")
-                    }
-                    if project.isUpToDate && !compact {
-                        StatusBadge(color: .green, icon: "checkmark.seal.fill", text: "À jour")
                     }
                 }
             }
-            .padding(compact ? 8 : 12)
-            .contentShape(Rectangle()) // Make the whole area clickable
+            
+            Spacer(minLength: 0)
+            
+            HStack(spacing: 6) {
+                LinkIconButton(label: "Ouvrir dans Finder") {
+                    openInFinder()
+                } content: {
+                    Image(systemName: "folder")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                
+                if let githubURL = githubWebURL {
+                    LinkIconButton(label: "Ouvrir le dépôt GitHub") {
+                        NSWorkspace.shared.open(githubURL)
+                    } content: {
+                        GitHubLogoView()
+                    }
+                }
+                
+                if project.isLinkedToGitHub {
+                    StatusBadge(color: .teal, icon: "link", text: compact ? "" : "GitHub")
+                } else if !compact {
+                    StatusBadge(color: .orange, icon: "link.slash", text: "Non lié")
+                }
+                
+                if project.isDirty {
+                    StatusBadge(color: .red, icon: "pencil", text: compact ? "" : "Modifié")
+                }
+                if project.aheadCount > 0 {
+                    StatusBadge(color: .blue, icon: "arrow.up", text: compact ? "\(project.aheadCount)" : "\(project.aheadCount) à envoyer")
+                }
+                if project.behindCount > 0 {
+                    StatusBadge(color: .purple, icon: "arrow.down", text: compact ? "\(project.behindCount)" : "\(project.behindCount) en retard")
+                }
+                if project.isUpToDate && !compact {
+                    StatusBadge(color: .green, icon: "checkmark.seal.fill", text: "À jour")
+                }
+            }
         }
-        .buttonStyle(.plain) // Remove default button styling
+        .padding(compact ? 8 : 12)
+        .contentShape(Rectangle())
         .background(Color(nsColor: .controlBackgroundColor))
         .cornerRadius(10)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
         )
+    }
+
+    private var githubWebURL: URL? {
+        guard let remote = project.remoteURL, !remote.isEmpty else { return nil }
+        let normalized = normalizeGitRemote(remote)
+        return URL(string: normalized)
+    }
+    
+    private func openInFinder() {
+        if let url = URL(string: "file://\(project.path)") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+    
+    private func normalizeGitRemote(_ remote: String) -> String {
+        var normalized = remote.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if normalized.hasPrefix("git@github.com:") {
+            normalized = normalized.replacingOccurrences(of: "git@github.com:", with: "https://github.com/")
+        } else if normalized.hasPrefix("ssh://git@github.com/") {
+            normalized = normalized.replacingOccurrences(of: "ssh://git@github.com/", with: "https://github.com/")
+        } else if normalized.hasPrefix("git://github.com/") {
+            normalized = normalized.replacingOccurrences(of: "git://github.com/", with: "https://github.com/")
+        } else if normalized.contains("github.com") && !(normalized.hasPrefix("https://") || normalized.hasPrefix("http://")) {
+            normalized = "https://" + normalized.replacingOccurrences(of: "github.com/", with: "github.com/")
+        }
+        
+        if normalized.hasSuffix(".git") {
+            normalized = String(normalized.dropLast(4))
+        }
+        
+        return normalized
+    }
+}
+
+struct LinkIconButton<Content: View>: View {
+    let label: String
+    let action: () -> Void
+    let content: () -> Content
+    
+    var body: some View {
+        Button(action: action) {
+            content()
+                .frame(width: 24, height: 24)
+        }
+        .buttonStyle(.plain)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+        )
+        .accessibilityLabel(label)
+        .help(label)
+    }
+}
+
+struct GitHubLogoView: View {
+    var body: some View {
+        if let nsImage = svgImage {
+            Image(nsImage: nsImage)
+                .resizable()
+                .scaledToFit()
+                .padding(3)
+        } else {
+            Image(systemName: "link")
+                .font(.system(size: 12, weight: .semibold))
+        }
+    }
+    
+    private var svgImage: NSImage? {
+        guard let url = Bundle.module.url(forResource: "github", withExtension: "svg"),
+              let data = try? Data(contentsOf: url),
+              let image = NSImage(data: data) else {
+            return nil
+        }
+        image.isTemplate = true
+        return image
     }
 }
 
