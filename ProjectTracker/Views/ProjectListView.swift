@@ -8,6 +8,7 @@ struct ProjectListView: View {
     @State private var sortOption: SortOption = .name
     @State private var sortAscending = true
     @State private var didCopyLog = false
+    @State private var mergeFolderSections = true
     
     var body: some View {
         VStack(spacing: 16) {
@@ -15,6 +16,7 @@ struct ProjectListView: View {
             statsRow
             searchRow
             statusLegend
+            folderMergeControl
             projectContent
             footer
         }
@@ -153,7 +155,13 @@ struct ProjectListView: View {
                 let changed = sortProjects(filtered.filter { $0.hasChanges })
                 let clean = sortProjects(filtered.filter { !$0.hasChanges })
                 let githubOnly = githubOnlyRepos()
-                
+
+                if sortOption == .folder && mergeFolderSections {
+                    FolderMergedSectionList(
+                        groups: groupByFolder(filtered),
+                        displayMode: displayMode
+                    )
+                } else {
                 if !changed.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         SectionHeader(title: "Actions requises", count: changed.count, accent: Color(red: 0.92, green: 0.54, blue: 0.36))
@@ -215,6 +223,7 @@ struct ProjectListView: View {
                             }
                         }
                     }
+                }
                 }
                 
                 if filtered.isEmpty {
@@ -339,6 +348,17 @@ struct ProjectListView: View {
             LegendItem(color: .green, icon: "checkmark.seal.fill", text: "À jour")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var folderMergeControl: some View {
+        Group {
+            if sortOption == .folder {
+                Toggle("Fusionner OK + Actions par dossier", isOn: $mergeFolderSections)
+                    .toggleStyle(.switch)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
     }
 }
 
@@ -629,6 +649,56 @@ struct FolderSectionHeader: View {
                 .offset(y: 10),
             alignment: .bottom
         )
+    }
+}
+
+struct FolderMergedSectionList: View {
+    let groups: [(folder: String, projects: [Project])]
+    let displayMode: DisplayMode
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(groups, id: \.folder) { group in
+                FolderSectionHeader(folder: group.folder)
+                
+                let dirty = group.projects.filter { $0.hasChanges }
+                let clean = group.projects.filter { !$0.hasChanges }
+                
+                if !dirty.isEmpty {
+                    StatusBucketHeader(title: "Actions requises")
+                    if displayMode == .list {
+                        VStack(spacing: 8) {
+                            ForEach(dirty) { project in
+                                ProjectRow(project: project, compact: false)
+                            }
+                        }
+                    } else {
+                        ColumnGrid(
+                            projects: dirty,
+                            columns: displayMode.columnCount,
+                            compact: displayMode.compactRows
+                        )
+                    }
+                }
+                
+                if !clean.isEmpty {
+                    StatusBucketHeader(title: "Tout est à jour")
+                    if displayMode == .list {
+                        VStack(spacing: 8) {
+                            ForEach(clean) { project in
+                                ProjectRow(project: project, compact: false)
+                            }
+                        }
+                    } else {
+                        ColumnGrid(
+                            projects: clean,
+                            columns: displayMode.columnCount,
+                            compact: displayMode.compactRows
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

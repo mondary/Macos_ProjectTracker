@@ -16,6 +16,7 @@ class TrackerViewModel: ObservableObject {
     @AppStorage("cachedLastScan") private var cachedLastScan: Double = 0
     @AppStorage("cachedScanLog") private var cachedScanLog: String = ""
     @Published var lastScanLog: String = ""
+    @AppStorage("scanIntervalMinutes") var scanIntervalMinutes: Int = 60
     @AppStorage("githubUsername") var githubUsername: String = "mondary"
     @AppStorage("githubUseAuth") var githubUseAuth: Bool = false
     @AppStorage("githubToken") var githubToken: String = ""
@@ -47,8 +48,8 @@ class TrackerViewModel: ObservableObject {
     
     func startTimer() {
         timer?.invalidate()
-        // Refresh every hour as requested
-        timer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in
+        let interval = max(1, scanIntervalMinutes) * 60
+        timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(interval), repeats: true) { _ in
             Task { @MainActor in
                 await self.scan()
             }

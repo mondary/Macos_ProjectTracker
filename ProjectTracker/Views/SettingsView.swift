@@ -26,6 +26,18 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    HStack(alignment: .center) {
+                        Text("Intervalle")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .frame(width: 90, alignment: .leading)
+                        
+                        Stepper(value: $viewModel.scanIntervalMinutes, in: 5...240, step: 5) {
+                            Text("\(viewModel.scanIntervalMinutes) min")
+                                .frame(minWidth: 70, alignment: .leading)
+                        }
+                    }
                 }
                 .padding(.vertical, 8)
             }
@@ -156,8 +168,11 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 560, height: 660)
+        .frame(width: 600, height: 760)
         .navigationTitle("Réglages - Project Tracker")
+        .onChange(of: viewModel.scanIntervalMinutes) { _ in
+            viewModel.startTimer()
+        }
     }
     
     private func selectFolder() {
