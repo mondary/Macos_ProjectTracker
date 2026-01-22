@@ -14,6 +14,8 @@ class TrackerViewModel: ObservableObject {
     @AppStorage("openRouterKey") var openRouterKey: String = ""
     @AppStorage("cachedProjects") private var cachedProjectsData: Data = Data()
     @AppStorage("cachedLastScan") private var cachedLastScan: Double = 0
+    @AppStorage("cachedScanLog") private var cachedScanLog: String = ""
+    @Published var lastScanLog: String = ""
     
     var filteredProjects: [Project] {
         if searchText.isEmpty {
@@ -27,6 +29,7 @@ class TrackerViewModel: ObservableObject {
     init() {
         loadCachedProjects()
         loadCachedLastScan()
+        loadCachedScanLog()
         startTimer()
         Task {
             await scan()
@@ -47,6 +50,7 @@ class TrackerViewModel: ObservableObject {
         guard !isScanning else { return }
         isScanning = true
         
+        let start = Date()
         let path = scanPath
         let scannedProjects = await Task.detached {
             await GitService.shared.scanDirectory(at: path)
@@ -61,6 +65,7 @@ class TrackerViewModel: ObservableObject {
         
         lastScanDate = Date()
         saveCachedLastScan()
+        updateScanLog(start: start, end: lastScanDate ?? Date(), path: path)
         saveCachedProjects()
         isScanning = false
     }
@@ -92,5 +97,38 @@ class TrackerViewModel: ObservableObject {
     private func saveCachedLastScan() {
         guard let lastScanDate else { return }
         cachedLastScan = lastScanDate.timeIntervalSince1970
+    }
+
+    private func loadCachedScanLog() {
+        lastScanLog = cachedScanLog
+    }
+
+    private func updateScanLog(start: Date, end: Date, path: String) {
+        let duration = end.timeIntervalSince(start)
+        let total = projects.count
+        let dirty = projects.filter { $0.isDirty }.count
+        let ahead = projects.filter { $0.aheadCount > 0 }.count
+        let behind = projects.filter { $0.behindCount > 0 }.count
+        let clean = projects.filter { !$0.hasChanges }.count
+        let linked = projects.filter { $0.isLinkedToGitHub }.count
+        
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .medium
+        
+        let log = """
+        Scan: \(formatter.string(from: end))
+        Path: \(path)
+        Duration: \(String(format: "%.2fs", duration))
+        Projects: \(total)
+        Clean: \(clean)
+        Dirty: \(dirty)
+        Ahead: \(ahead)
+        Behind: \(behind)
+        GitHub linked: \(linked)
+        """
+        
+        lastScanLog = log
+        cachedScanLog = log
     }
 }

@@ -5,8 +5,9 @@ struct ProjectListView: View {
     @ObservedObject var viewModel: TrackerViewModel
     @Environment(\.openSettings) private var openSettings
     @State private var displayMode: DisplayMode = .twoColumns
-    @State private var sortOption: SortOption = .status
-    @State private var sortAscending = true
+    @State private var sortOption: SortOption = .name
+    @State private var sortAscending = false
+    @State private var didCopyLog = false
     
     var body: some View {
         VStack(spacing: 16) {
@@ -210,6 +211,7 @@ struct ProjectListView: View {
                 Text("Surveillance :")
                     .fontWeight(.semibold)
                 Text(viewModel.scanPath)
+                    .textSelection(.enabled)
             }
             .font(.system(size: 10, design: .monospaced))
             .foregroundColor(.secondary.opacity(0.8))
@@ -226,6 +228,19 @@ struct ProjectListView: View {
             }
             
             Spacer()
+
+            Button("Log") {
+                copyScanLog()
+            }
+            .buttonStyle(.link)
+            .font(.system(size: 10, weight: .semibold, design: .rounded))
+            .help("Copier le log de scan")
+
+            if didCopyLog {
+                Text("Copié")
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundColor(.secondary)
+            }
             
             Button("Réglages") {
                 openSettings()
@@ -242,6 +257,17 @@ struct ProjectListView: View {
         }
         .padding(.vertical, 2)
         .frame(height: 22)
+    }
+
+    private func copyScanLog() {
+        let log = viewModel.lastScanLog.isEmpty ? "No scan log available." : viewModel.lastScanLog
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(log, forType: .string)
+        didCopyLog = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            didCopyLog = false
+        }
     }
     
     private var statusLegend: some View {
