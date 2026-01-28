@@ -12,7 +12,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "ProjectTracker",
-            path: "ProjectTracker",
+            path: "src",
             resources: [
                 .process("Resources")
             ]
