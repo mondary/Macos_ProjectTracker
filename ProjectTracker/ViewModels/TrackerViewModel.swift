@@ -17,6 +17,7 @@ class TrackerViewModel: ObservableObject {
     @AppStorage("cachedScanLog") private var cachedScanLog: String = ""
     @Published var lastScanLog: String = ""
     @AppStorage("scanIntervalMinutes") var scanIntervalMinutes: Int = 60
+    @AppStorage("excludedSubfolders") private var excludedSubfolders: String = ""
     @AppStorage("githubUsername") var githubUsername: String = "mondary"
     @AppStorage("githubUseAuth") var githubUseAuth: Bool = false
     @AppStorage("githubToken") var githubToken: String = ""
@@ -25,6 +26,13 @@ class TrackerViewModel: ObservableObject {
     @AppStorage("reportPath") var reportPath: String = NSString(string: "~/Documents/ProjectTracker/report.html").expandingTildeInPath
     @AppStorage("reportAutoGenerate") var reportAutoGenerate: Bool = true
     @AppStorage("reportAutoOpen") var reportAutoOpen: Bool = true
+
+    var excludedSubfolderList: [String] {
+        excludedSubfolders
+            .split(whereSeparator: { $0 == "\n" || $0 == "," })
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
     
     var filteredProjects: [Project] {
         if searchText.isEmpty {
@@ -62,8 +70,9 @@ class TrackerViewModel: ObservableObject {
         
         let start = Date()
         let path = scanPath
+        let excluded = excludedSubfolderList
         let scannedProjects = await Task.detached {
-            await GitService.shared.scanDirectory(at: path)
+            await GitService.shared.scanDirectory(at: path, excluding: excluded)
         }.value
         
         self.projects = scannedProjects.sorted { p1, p2 in
@@ -188,5 +197,25 @@ class TrackerViewModel: ObservableObject {
         } catch {
             // Keep last cached repos if fetch fails
         }
+    }
+
+    func addExcludedSubfolder(_ value: String) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        var current = excludedSubfolderList
+        if current.contains(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+            return
+        }
+        current.append(trimmed)
+        objectWillChange.send()
+        excludedSubfolders = current.joined(separator: "\n")
+    }
+
+    func removeExcludedSubfolder(_ value: String) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let updated = excludedSubfolderList.filter { $0.caseInsensitiveCompare(trimmed) != .orderedSame }
+        objectWillChange.send()
+        excludedSubfolders = updated.joined(separator: "\n")
     }
 }

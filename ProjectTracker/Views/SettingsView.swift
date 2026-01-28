@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var viewModel: TrackerViewModel
+    @State private var excludedInput: String = ""
     
     var body: some View {
         Form {
@@ -38,6 +39,56 @@ struct SettingsView: View {
                                 .frame(minWidth: 70, alignment: .leading)
                         }
                     }
+
+                    Divider()
+
+                    Text("Sous-dossiers à exclure")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        TextField("Nom du dossier (ex: node_modules)", text: $excludedInput)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit {
+                                addExcludedSubfolder()
+                            }
+
+                        Button("Ajouter") {
+                            addExcludedSubfolder()
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    if !viewModel.excludedSubfolderList.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(viewModel.excludedSubfolderList, id: \.self) { folder in
+                                HStack {
+                                    Text(folder)
+                                        .font(.caption)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                                    Button {
+                                        viewModel.removeExcludedSubfolder(folder)
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    } else {
+                        Text("Aucun dossier exclu pour le moment.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    Text("Les dossiers listés ici seront ignorés pendant le scan.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.vertical, 8)
             }
@@ -190,6 +241,13 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private func addExcludedSubfolder() {
+        let trimmed = excludedInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        viewModel.addExcludedSubfolder(trimmed)
+        excludedInput = ""
     }
 }
 

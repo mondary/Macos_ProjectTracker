@@ -5,9 +5,12 @@ actor GitService {
     
     private init() {}
     
-    func scanDirectory(at path: String) async -> [Project] {
+    func scanDirectory(at path: String, excluding excludedSubfolders: [String] = []) async -> [Project] {
         let fileManager = FileManager.default
         let url = URL(fileURLWithPath: path)
+        let excludedSet = Set(
+            excludedSubfolders.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        )
         
         // Collect URLs first because NSDirectoryEnumerator is not Sendable/Async-safe
         guard let enumerator = fileManager.enumerator(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles, .skipsPackageDescendants]) else {
@@ -16,6 +19,16 @@ actor GitService {
         
         var gitFolders: [URL] = []
         while let fileURL = enumerator.nextObject() as? URL {
+            let relativePath = fileURL.path.replacingOccurrences(of: url.path, with: "")
+                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            if !relativePath.isEmpty {
+                let components = relativePath.split(separator: "/").map { String($0).lowercased() }
+                if components.contains(where: { excludedSet.contains($0) }) {
+                    enumerator.skipDescendants()
+                    continue
+                }
+            }
+
             var isDirectory: ObjCBool = false
             if fileManager.fileExists(atPath: fileURL.appendingPathComponent(".git").path, isDirectory: &isDirectory), isDirectory.boolValue {
                 gitFolders.append(fileURL)
